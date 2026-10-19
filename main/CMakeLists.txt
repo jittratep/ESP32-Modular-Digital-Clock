@@ -1,2 +1,4 @@
-idf_component_register(SRCS "ESP32_Modular_Digital_Clock.c"
-                    INCLUDE_DIRS ".")
+idf_component_register(SRCS "main.cpp" 
+                            "DS1307.cpp" 
+                            "SSD1306.cpp"
+                       INCLUDE_DIRS ".")

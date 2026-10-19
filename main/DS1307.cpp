@@ -15,7 +15,7 @@ bool DS1307::init() {
 }
 
 bool DS1307::getTime(DateTime& dt) {
-    uint8_t raw[7];
+    uint8_t raw[7] = {0}; // เพิ่ม = {0} เพื่อกำหนดค่าเริ่มต้น
     if (!bus_.readRegs(I2C_ADDR, 0x00, raw, 7)) return false;
     dt.second = bcd2dec(raw[0] & 0x7F);
     dt.minute = bcd2dec(raw[1]);

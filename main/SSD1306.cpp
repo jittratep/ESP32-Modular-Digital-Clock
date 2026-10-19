@@ -23,4 +23,15 @@ void SSD1306::setPixel(int x, int y, bool color) {
 void SSD1306::flush() {
     // Transmit buffer_ via thread-safe I2CBus
 }
+
+void SSD1306::renderHeader(bool wifiConnected) {
+    // ใส่โค้ดสำหรับวาด UI ส่วนหัวจอ (Header)
+    if (wifiConnected) {
+        // โค้ดวาดสัญลักษณ์หรือข้อความเมื่อ NTP ซิงก์สำเร็จ
+    }
+}
+
+void SSD1306::drawString(int x, int y, const char* str) {
+    // โค้ดสำหรับแปลงตัวอักษรเป็นพิกเซลแล้วบันทึกลง buffer_
+}
 }
