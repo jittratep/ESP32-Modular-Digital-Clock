@@ -9,6 +9,8 @@ private:
     uint8_t addr_;
     uint8_t buffer_[1024]; // 128x64 / 8 bits
 
+    bool sendCommands(const uint8_t* commands, size_t len);
+
 public:
     SSD1306(I2CBus& bus, uint8_t addr = 0x3C) : bus_(bus), addr_(addr) {}
     bool init();
@@ -16,6 +18,6 @@ public:
     void setPixel(int x, int y, bool color);
     void drawString(int x, int y, const char* str);
     void renderHeader(bool wifiConnected);
-    void flush();
+    bool flush();
 };
 }

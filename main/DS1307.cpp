@@ -26,4 +26,23 @@ bool DS1307::getTime(DateTime& dt) {
     dt.year = 2000 + bcd2dec(raw[6]);
     return true;
 }
+
+bool DS1307::setTime(const DateTime& dt) {
+    if (dt.second > 59 || dt.minute > 59 || dt.hour > 23 ||
+        dt.dayOfWeek < 1 || dt.dayOfWeek > 7 ||
+        dt.dayOfMonth < 1 || dt.dayOfMonth > 31 ||
+        dt.month < 1 || dt.month > 12 || dt.year < 2000 || dt.year > 2099) {
+        return false;
+    }
+
+    const uint8_t values[] = {
+        dec2bcd(dt.second), dec2bcd(dt.minute), dec2bcd(dt.hour),
+        dec2bcd(dt.dayOfWeek), dec2bcd(dt.dayOfMonth), dec2bcd(dt.month),
+        dec2bcd(static_cast<uint8_t>(dt.year - 2000))
+    };
+    for (uint8_t reg = 0; reg < sizeof(values); ++reg) {
+        if (!bus_.writeReg(I2C_ADDR, reg, values[reg])) return false;
+    }
+    return true;
+}
 }

@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#include "esp_log.h" // เพิ่มสำหรับใช้คำสั่ง ESP_LOGI
+#include "esp_log.h"
 
 namespace Clock {
 enum class ButtonId { MODE, SET, ALARM, LAP };
@@ -17,47 +17,58 @@ struct ButtonEvent {
 
 class ButtonManager {
 private:
-    QueueHandle_t eventQueue_;
+    static constexpr size_t BUTTON_COUNT = 4;
+    const gpio_num_t pins_[BUTTON_COUNT] = {
+        GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_4, GPIO_NUM_5
+    };
+    const ButtonId buttonIds_[BUTTON_COUNT] = {
+        ButtonId::MODE, ButtonId::SET, ButtonId::ALARM, ButtonId::LAP
+    };
+    bool pressed_[BUTTON_COUNT]{};
+    QueueHandle_t eventQueue_{nullptr};
 
 public:
-    void init() {
+    bool init() {
         eventQueue_ = xQueueCreate(10, sizeof(ButtonEvent));
-        
-        // กำหนดขา GPIO 18 (MODE), 19 (SET), 4 (ALARM), 5 (LAP) เป็น Input Pull-up
-        const gpio_num_t pins[] = {GPIO_NUM_18, GPIO_NUM_19, GPIO_NUM_4, GPIO_NUM_5};
-        for (int i = 0; i < 4; i++) {
-            gpio_set_direction(pins[i], GPIO_MODE_INPUT);
-            gpio_set_pull_mode(pins[i], GPIO_PULLUP_ONLY); // เปิด Pull-up เพื่อให้สถานะปกติเป็น 1
+        if (eventQueue_ == nullptr) {
+            ESP_LOGE("BUTTON", "Failed to create button event queue");
+            return false;
         }
+
+        gpio_config_t config = {};
+        for (const gpio_num_t pin : pins_) {
+            config.pin_bit_mask |= (1ULL << pin);
+        }
+        config.mode = GPIO_MODE_INPUT;
+        config.pull_up_en = GPIO_PULLUP_ENABLE;
+        config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        config.intr_type = GPIO_INTR_DISABLE;
+        const esp_err_t result = gpio_config(&config);
+        if (result != ESP_OK) {
+            ESP_LOGE("BUTTON", "Failed to configure button GPIOs: %s", esp_err_to_name(result));
+            return false;
+        }
+        return true;
     }
 
     void taskLoop() {
         while (true) {
-            // เช็กปุ่ม MODE (GPIO 18) - ถ้าถูกกดค่าจะโดนดึงลงกราวด์เป็น 0 (LOW)
-            if (gpio_get_level(GPIO_NUM_18) == 0) {
-                ESP_LOGI("BUTTON", "MODE (GPIO18) Pressed!");
-                vTaskDelay(pdMS_TO_TICKS(250)); // Debounce ป้องกันการกดซ้ำรัวๆ
-            }
-            
-            // เช็กปุ่ม SET (GPIO 19)
-            if (gpio_get_level(GPIO_NUM_19) == 0) {
-                ESP_LOGI("BUTTON", "SET/INC (GPIO19) Pressed!");
-                vTaskDelay(pdMS_TO_TICKS(250));
-            }
+            for (size_t i = 0; i < BUTTON_COUNT; ++i) {
+                const bool isPressed = gpio_get_level(pins_[i]) == 0;
+                if (isPressed == pressed_[i]) continue;
 
-            // เช็กปุ่ม ALARM (GPIO 4)
-            if (gpio_get_level(GPIO_NUM_4) == 0) {
-                ESP_LOGI("BUTTON", "ALARM (GPIO4) Pressed!");
-                vTaskDelay(pdMS_TO_TICKS(250));
-            }
+                vTaskDelay(pdMS_TO_TICKS(30));
+                if ((gpio_get_level(pins_[i]) == 0) != isPressed) continue;
 
-            // เช็กปุ่ม LAP (GPIO 5)
-            if (gpio_get_level(GPIO_NUM_5) == 0) {
-                ESP_LOGI("BUTTON", "LAP (GPIO5) Pressed!");
-                vTaskDelay(pdMS_TO_TICKS(250));
+                pressed_[i] = isPressed;
+                if (isPressed) {
+                    const ButtonEvent event{buttonIds_[i], PressType::SHORT};
+                    if (xQueueSend(eventQueue_, &event, 0) != pdTRUE) {
+                        ESP_LOGW("BUTTON", "Button event queue is full");
+                    }
+                }
             }
-
-            vTaskDelay(pdMS_TO_TICKS(50)); // หน่วงเวลา 50ms เพื่อคืนทรัพยากรให้ CPU
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
 
