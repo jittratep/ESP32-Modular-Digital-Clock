@@ -1,6 +1,8 @@
 // TimeManager.hpp - POSIX System & NTP Sync Subsystem
 #pragma once
 #include "DS1307.hpp"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace Clock {
 class TimeManager {
@@ -16,7 +18,10 @@ public:
     }
 
     void taskNtpLoop() {
-        // Periodic 1-hour NTP sync task loop
+        while (true) {
+            // โค้ดสำหรับดึงเวลาจากอินเทอร์เน็ต (NTP) จะใส่ไว้ตรงนี้
+            vTaskDelay(pdMS_TO_TICKS(1000)); // หน่วงเวลา 1 วินาที
+        }
     }
 
     bool isNtpSynced() const { return ntpSynced_; }
